@@ -1,0 +1,13 @@
+{
+  "name": "nodejs-music-indexer",
+  "version": "0.1.0",
+  "description": "Node js sample to index music metadata in elasticsearch",
+  "main": "app.js",
+  "dependencies": {
+    "musicmetadata": "",
+    "walk": ""
+  },
+  "author": "Jettro Coenradie",
+  "license": "Apache 2",
+  "private": true
+}
