@@ -1,75 +1,72 @@
-var http = require('http');
+var elasticsearch = require('elasticsearch');
 
-deleteIndex();
+var client = new elasticsearch.Client({
+	log:'trace'
+});
 
-var settings = require('./settings.json');
-sendSettings(settings);
+deleteIndex(client);
 
-function deleteIndex() {
-	var opts = {
-		host: 'localhost',
-		port: 9200,
-		path: '/mymusic',
-		method: 'DELETE'
-	};
-
-	var req = http.request(opts, function(res) {
-		res.setEncoding('utf-8');
-
-		var responseString = '';
-
-		res.on('data', function(data) {
-			responseString += data;
-		});
-
-		res.on('end', function() {
-			var resultObject = JSON.parse(responseString);
-		});
+function deleteIndex(client) {
+	client.indices.delete({
+		index: 'mymusic'
+	}, function(err,response) {
+		console.log("Delete index!");
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(response);
+			sendSettings();
+		}
 	});
-
-	req.on('error', function(e) {
-	  console.log(e);
-	});
-
-	req.end();
 }
 
-function sendSettings(settings) {
-	var searchString = JSON.stringify(settings);
+function sendSettings() {
+	client.indices.create({
+		index: 'mymusic',
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+	}, function(err,response) {
+		console.log("create index!");
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(response);
+			sendMapping();
+		}
+	});
+}
 
-	var headers = {
-			'Content-Type': 'application/json',
-			'Content-Length': searchString.length
-	};
-
-	var opts = {
-		host: 'localhost',
-		port: 9200,
-		path: '/mymusic',
-		method: 'POST',
-		headers: headers
-	};
-
-	// Setup the request.  The options parameter is
-	// the object we defined above.
-	var req = http.request(opts, function(res) {
-		res.setEncoding('utf-8');
-
-		var responseString = '';
-
-		res.on('data', function(data) {
-			responseString += data;
-		});
-
-		res.on('end', function() {
-			var resultObject = JSON.parse(responseString);
-		});
+function sendMapping() {
+	client.indices.putMapping({
+		index:'mymusic',
+		type:'itunes',
+		body: {
+            "_all": {
+                "enabled": true
+            },
+            "properties": {
+                "artist": {
+                    "type": "string",
+                    "fields" : {
+                        "untouched": {"type":"string", "index":"not_analyzed"}
+                    }
+                },
+                "title": {
+                    "type": "multi_field",
+                    "fields" : {
+                        "title": {"type":"string", "index":"analyzed"},
+                        "untouched": {"type":"string", "index":"not_analyzed"}
+                    }
+                }
+            }
+        }
+	}, function(err,response) {
+		console.log("Put mapping !");
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(response);
+		}
 	});
 
-	req.on('error', function(e) {
-	  console.log(e);
-	});
-
-	req.write(searchString);
-	req.end();
 }

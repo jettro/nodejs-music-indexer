@@ -1,9 +1,11 @@
 var fs = require('fs');
 var mm = require('musicmetadata');
-var http = require('http');
+var elasticsearch = require('elasticsearch');
 var walk = require('walk');
 
-var walker  = walk.walk('/Users/jettrocoenradie/Music/iTunes/iTunes Media/Music', { followLinks: false });
+var client = new elasticsearch.Client();
+
+var walker  = walk.walk('/Users/jettrocoenradie/Music/iTunes/iTunes Media/Music/Agnes Obel', { followLinks: false });
 
 walker.on('file', function(root, stat, next) {
     if (strEndsWith(stat.name,".m4a") || strEndsWith(stat.name,".mp3")) {
@@ -30,45 +32,15 @@ function extractData(file) {
 }
 
 function sendToElasticsearch(searchObj) {
-	var searchString = JSON.stringify(searchObj);
-
-	var headers = {
-			'Content-Type': 'application/json',
-			'Content-Length': searchString.length
-	};
-
-	var opts = {
-		host: 'localhost',
-		port: 9200,
-		path: '/mymusic/itunes',
-		method: 'POST',
-		headers: headers
-	};
-
-	// Setup the request.  The options parameter is
-	// the object we defined above.
-	var req = http.request(opts, function(res) {
-		res.setEncoding('utf-8');
-
-		var responseString = '';
-
-		res.on('data', function(data) {
-			responseString += data;
-		});
-
-		res.on('end', function() {
-			try {
-				var resultObject = JSON.parse(responseString);
-			} catch (e) {
-				console.log(e);
-			}
-		});
+	client.index({
+		index: 'mymusic',
+		type: 'itunes',
+		body: searchObj
+	}, function(err,response) {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(response);
+		}
 	});
-
-	req.on('error', function(e) {
-	  console.log(e);
-	});
-
-	req.write(searchString);
-	req.end();
 }
