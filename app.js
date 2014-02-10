@@ -2,10 +2,13 @@ var fs = require('fs');
 var mm = require('musicmetadata');
 var elasticsearch = require('elasticsearch');
 var walk = require('walk');
+var readline = require('readline');
 
-var client = new elasticsearch.Client();
+var client = new elasticsearch.Client({
+	host: '192.168.1.10:9200'
+});
 
-var walker  = walk.walk('/Users/jettrocoenradie/Music/iTunes/iTunes Media/Music/Agnes Obel', { followLinks: false });
+var walker  = walk.walk('/Users/jettrocoenradie/Music/iTunes/iTunes Media/Music', { followLinks: false });
 
 walker.on('file', function(root, stat, next) {
     if (strEndsWith(stat.name,".m4a") || strEndsWith(stat.name,".mp3")) {
@@ -15,7 +18,17 @@ walker.on('file', function(root, stat, next) {
 });
 
 walker.on('end', function() {
-    console.log("We are done!");
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout
+	});
+
+	rl.question("What do you think of node.js? ", function(answer) {
+		console.log("Thank you for your valuable feedback:", answer);
+  		rl.close();
+		flushItems();
+  		console.log("We are done!");
+	});
 });
 
 function strEndsWith(str, suffix) {
@@ -31,16 +44,27 @@ function extractData(file) {
 	});
 }
 
+var items = [];
 function sendToElasticsearch(searchObj) {
-	client.index({
+	console.log("Sending to elastic");
+	items.push({"index":{}});
+	items.push(searchObj);
+	if (items.length >= 100) {
+		flushItems();
+	}
+}
+
+function flushItems() {
+	console.log("Flushing items");
+	client.bulk({
 		index: 'mymusic',
-		type: 'itunes',
-		body: searchObj
+		type: 'local',
+		body: items
 	}, function(err,response) {
 		if (err) {
 			console.log(err);
-		} else {
-			console.log(response);
 		}
+		items = [];
 	});
 }
+
